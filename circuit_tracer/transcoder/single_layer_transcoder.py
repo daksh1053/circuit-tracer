@@ -82,6 +82,8 @@ class SingleLayerTranscoder(nn.Module):
 
     def compute_skip(self, input_acts):
         if self.W_skip is not None:
+            # Convert input_acts to the same dtype as W_skip
+            input_acts = input_acts.to(dtype=self.W_skip.dtype, device=self.W_skip.device)
             return input_acts @ self.W_skip.T
         else:
             raise ValueError("Transcoder has no skip connection")
