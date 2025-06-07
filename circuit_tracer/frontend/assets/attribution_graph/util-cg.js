@@ -204,6 +204,7 @@ window.utilCg = (function(){
       )
     }
 
+    const clerpPromises = [];
     nodes.forEach((d, i) => {
       // To make hover state work across prompts, drop ctx from node id
       d.featureId = `${d.layer}_${d.feature}_${d.ctx_idx}`
@@ -231,10 +232,45 @@ window.utilCg = (function(){
         if (!d.featureId.includes('__err_idx_')) d.featureId = d.featureId + '__err_idx_' + d.ctx_from_end
 
         if (d.feature_type == 'mlp reconstruction error' && !d.clerp) {
-          d.clerp = `Err: mlp “${util.ppToken(data.metadata.prompt_tokens[d.ctx_idx])}"`
+          d.clerp = `Err: mlp " ${util.ppToken(data.metadata.prompt_tokens[d.ctx_idx])} "`
         }
       } else if (d.feature_type == 'embedding'){
-        d.clerp = `Emb: “${util.ppToken(data.metadata.prompt_tokens[d.ctx_idx])}"`
+        d.clerp = `Emb: " ${util.ppToken(data.metadata.prompt_tokens[d.ctx_idx])} "`
+      } else if (d.feature_type?.includes('transcoder') && !d.clerp) {
+        clerpPromises.push((async () => {
+          try {
+            // TODO: make model_id and transcoder_id configurable from metadata
+            var modelId = 'gemma-2-2b';
+            var transcoderId = 'gemmascope-transcoder-16k';
+
+            var featureStr = String(d.feature);
+            var layerStr = String(d.layer);
+
+            if (featureStr.startsWith(layerStr)) {
+              var featureId = parseInt(featureStr.substring(layerStr.length), 10);
+              var url = `https://www.neuronpedia.org/api/feature/${modelId}/${d.layer}-${transcoderId}/${featureId}`;
+
+              console.log(`Fetching label for feature ${d.feature}: ${url}`);
+
+              const response = await fetch(url);
+              if (response.ok) {
+                const json = await response.json();
+                if (json.explanations && json.explanations[0]?.description) {
+                  d.clerp = json.explanations[0].description;
+                  console.log(`SUCCESS: Fetched label for feature ${d.feature}: "${d.clerp}"`);
+                } else {
+                   console.log(`SUCCESS (no label): Response for feature ${d.feature} missing 'explanations' field.`);
+                }
+              } else {
+                console.error(`FAILED: Fetching label for feature ${d.feature} from ${url} (${response.statusText})`);
+              }
+            } else {
+              console.warn(`SKIPPING: Feature ${d.feature} (layer ${d.layer}) does not seem to be a transcoder feature.`);
+            }
+          } catch (e) {
+            console.error(`ERROR: Fetching label for feature ${d.feature}`, e);
+          }
+        })());
       }
 
       d.url = d.vis_link
@@ -250,6 +286,8 @@ window.utilCg = (function(){
       idToNode[d.nodeId] = d
       py_node_id_to_node[d.node_id] = d
     })
+
+    await Promise.all(clerpPromises);
 
     // delete features that occur in than 2/3 of tokens
     // TODO: more principled way of filtering them out — maybe by feature density?
