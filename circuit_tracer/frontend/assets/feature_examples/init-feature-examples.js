@@ -39,57 +39,70 @@ window.initFeatureExamples = function({containerSel, showLogits=true, showExampl
 
     return feature
   }
-
-  async function loadFeature(scan, featureIndex) {
-    console.log("scan", scan)
-    var feature
+  async function loadFeature(scan, featureIndex){
     try {
-      if (scan.toLowerCase().includes('qwen')) {
-        const layerMatch = featureIndex.match(/-(\d+)\//)
-        const indexMatch = featureIndex.match(/\/(\d+)\.json$/)
-
-        if (layerMatch && indexMatch) {
-          const layer = layerMatch[1]
-          const index = indexMatch[1]
-          try {
-            feature = await util.getFileFromBackend(layer, index)
-          } catch (e) {
-            const path = `./features/${scan}/${featureIndex}.json`
-            feature = await util.getFile(path)
-            await util.postFeatureToBackend(layer, index, feature)
-          }
-        } else {
-          const path = `./features/${scan}/${featureIndex}.json`
-          feature = await util.getFile(path)
-        }
+      if (scan.startsWith('./')) {
+        var feature = await  util.getFile(`${scan}/${featureIndex}.json`)
       } else {
-        const path = scan.startsWith('./')
-          ? `${scan}/${featureIndex}.json`
-          : `./features/${scan}/${featureIndex}.json`
-        feature = await util.getFile(path)
+        var feature = await  util.getFile(`./features/${scan}/${featureIndex}.json`)
       }
-    } catch (e) {
-      console.error("Error loading feature", e)
-      feature = {isDead: true, statistics: {}}
+    } catch {
+      var feature = {isDead: true, statistics: {}}
     }
 
-    console.log("antro feature", feature)
-
-    // console.log("ANTHRO feature STRING", JSON.stringify(feature));
-
-    if (feature.act_min === undefined) {
-      feature.act_min = 0
-      feature.act_max = 1.4
-    }
-
-    feature.colorScale = d3.scaleSequential(d3.interpolateOranges)
-      .domain([feature.act_min, feature.act_max]).clamp(1)
-
-    feature.featureIndex = featureIndex
-    feature.scan = scan
-
-    return feature
+    return feature;
   }
+
+  // async function loadFeature(scan, featureIndex) {
+  //   console.log("scan", scan)
+  //   var feature
+  //   try {
+  //     if (scan.toLowerCase().includes('qwen')) {
+  //       const layerMatch = featureIndex.match(/-(\d+)\//)
+  //       const indexMatch = featureIndex.match(/\/(\d+)\.json$/)
+
+  //       if (layerMatch && indexMatch) {
+  //         const layer = layerMatch[1]
+  //         const index = indexMatch[1]
+  //         try {
+  //           feature = await util.getFileFromBackend(layer, index)
+  //         } catch (e) {
+  //           const path = `./features/${scan}/${featureIndex}.json`
+  //           feature = await util.getFile(path)
+  //           await util.postFeatureToBackend(layer, index, feature)
+  //         }
+  //       } else {
+  //         const path = `./features/${scan}/${featureIndex}.json`
+  //         feature = await util.getFile(path)
+  //       }
+  //     } else {
+  //       const path = scan.startsWith('./')
+  //         ? `${scan}/${featureIndex}.json`
+  //         : `./features/${scan}/${featureIndex}.json`
+  //       feature = await util.getFile(path)
+  //     }
+  //   } catch (e) {
+  //     console.error("Error loading feature", e)
+  //     feature = {isDead: true, statistics: {}}
+  //   }
+
+  //   console.log("antro feature", feature)
+
+  //   // console.log("ANTHRO feature STRING", JSON.stringify(feature));
+
+  //   if (feature.act_min === undefined) {
+  //     feature.act_min = 0
+  //     feature.act_max = 1.4
+  //   }
+
+  //   feature.colorScale = d3.scaleSequential(d3.interpolateOranges)
+  //     .domain([feature.act_min, feature.act_max]).clamp(1)
+
+  //   feature.featureIndex = featureIndex
+  //   feature.scan = scan
+
+  //   return feature
+  // }
 }
 
 window.init?.()
