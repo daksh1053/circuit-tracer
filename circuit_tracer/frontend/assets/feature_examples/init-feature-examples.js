@@ -40,16 +40,42 @@ window.initFeatureExamples = function({containerSel, showLogits=true, showExampl
     return feature
   }
 
-  async function loadFeature(scan, featureIndex){
+  async function loadFeature(scan, featureIndex) {
+    console.log("scan", scan)
+    var feature
     try {
-      if (scan.startsWith('./')) {
-        var feature = await  util.getFile(`${scan}/${featureIndex}.json`)
+      if (scan.toLowerCase().includes('qwen')) {
+        const layerMatch = featureIndex.match(/-(\d+)\//)
+        const indexMatch = featureIndex.match(/\/(\d+)\.json$/)
+
+        if (layerMatch && indexMatch) {
+          const layer = layerMatch[1]
+          const index = indexMatch[1]
+          try {
+            feature = await util.getFileFromBackend(layer, index)
+          } catch (e) {
+            const path = `./features/${scan}/${featureIndex}.json`
+            feature = await util.getFile(path)
+            await util.postFeatureToBackend(layer, index, feature)
+          }
+        } else {
+          const path = `./features/${scan}/${featureIndex}.json`
+          feature = await util.getFile(path)
+        }
       } else {
-        var feature = await  util.getFile(`./features/${scan}/${featureIndex}.json`)
+        const path = scan.startsWith('./')
+          ? `${scan}/${featureIndex}.json`
+          : `./features/${scan}/${featureIndex}.json`
+        feature = await util.getFile(path)
       }
-    } catch {
-      var feature = {isDead: true, statistics: {}}
+    } catch (e) {
+      console.error("Error loading feature", e)
+      feature = {isDead: true, statistics: {}}
     }
+
+    console.log("antro feature", feature)
+
+    // console.log("ANTHRO feature STRING", JSON.stringify(feature));
 
     if (feature.act_min === undefined) {
       feature.act_min = 0

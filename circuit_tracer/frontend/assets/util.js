@@ -38,6 +38,30 @@ window.util = (function () {
     return rv
   })()
   
+  async function getFileFromBackend(layer, index) {
+    const port = 8048
+    const response = await fetch(`http://localhost:${port}/features?layer=${layer}&index=${index}`)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return await response.json()
+  }
+
+  async function postFeatureToBackend(layer, index, data) {
+    const port = 8048
+    const response = await fetch(`http://localhost:${port}/features?layer=${layer}&index=${index}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return await response.json()
+  }
+
   async function getFile(path, useCache = true) {
     // Cache storage 
     var __datacache = window.__datacache = window.__datacache || {}
@@ -55,6 +79,12 @@ window.util = (function () {
         path = path.replace('./graph_data/', 'https://d1fk9w8oratjix.cloudfront.net/graph_data/')
       }
     }
+
+    if (path.includes('qwen')) {
+      path = path.replace('-transcoder', '')
+    }
+
+    console.log("fetching path", path)
     
     // Return cached result if available 
     if (!useCache || !__datacache[path]) __datacache[path] = __fetch()
@@ -425,6 +455,8 @@ window.util = (function () {
     ppToken,
     ppClerp,
     attachFeatureExamplesTooltip,
+    getFileFromBackend,
+    postFeatureToBackend,
   }
 })()
 

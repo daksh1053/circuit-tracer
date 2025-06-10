@@ -9,6 +9,7 @@ import socketserver
 import threading
 from importlib.resources import files
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 logger = logging.getLogger(__name__)
 logger.propagate = False
@@ -55,6 +56,42 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
     def _do_GET(self):
         # Redirect feature requests to AWS
         logger.info(f"Received request for {self.path}")
+
+        parsed_path = urlparse(self.path)
+        if parsed_path.path == "/features":
+            query = parse_qs(parsed_path.query)
+            layer = query.get("layer", [None])[0]
+            index = query.get("index", [None])[0]
+
+            if not layer or not index:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Missing layer or index parameter")
+                return
+
+            feature_path = os.path.join(self.data_dir, "features", str(layer), f"{index}.json")
+            logger.info(f"Attempting to serve feature from {feature_path}")
+
+            if not os.path.exists(feature_path):
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"Feature not found")
+                return
+
+            try:
+                with open(feature_path, "rb") as f:
+                    content = f.read()
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            except Exception as e:
+                logger.exception(f"Error serving feature file: {e}")
+                self.send_response(500)
+                self.end_headers()
+            return
 
         # Handle both explicit index.html requests and root path requests
         if self.path.endswith("index.html") or self.path == "/":
@@ -108,6 +145,41 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
+        try:
+            parsed_path = urlparse(self.path)
+            if parsed_path.path == "/features":
+                query = parse_qs(parsed_path.query)
+                layer = query.get("layer", [None])[0]
+                index = query.get("index", [None])[0]
+
+                if not layer or not index:
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"Missing layer or index parameter")
+                    return
+
+                content_length = int(self.headers["Content-Length"])
+                post_data = self.rfile.read(content_length)
+
+                feature_dir = os.path.join(self.data_dir, "features", str(layer))
+                os.makedirs(feature_dir, exist_ok=True)
+                feature_path = os.path.join(feature_dir, f"{index}.json")
+
+                with open(feature_path, "wb") as f:
+                    f.write(post_data)
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "path": feature_path}).encode("utf-8"))
+                logger.info(f"Feature saved to {feature_path}")
+                return
+        except Exception as e:
+            logger.exception(f"Error handling POST request to /features: {e}")
+            self.send_response(500)
+            self.end_headers()
+            return
+
         if not self.path.startswith("/save_graph/"):
             self.send_response(404)
             return
@@ -204,13 +276,13 @@ class Server:
         return self.logs
 
 
-def serve(data_dir, frontend_dir=None, port=8032):
+def serve(data_dir, frontend_dir=None, port=8048):
     """Start a local HTTP server in a separate thread.
 
     Args:
         data_dir: Directory for local graph data.
         frontend_dir: Directory containing frontend files. Defaults to DEFAULT_FRONTEND_DIR.
-        port: Port to serve on. Defaults to 8032.
+        port: Port to serve on. Defaults to 8048.
 
     Returns:
         Server object with a stop() method to shut down the server.
