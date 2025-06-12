@@ -497,20 +497,12 @@ def _run_attribution(
     # Phase 3: logit attribution
     logger.info("Phase 3: Computing logit attributions")
     phase_start = time.time()
-
-    will_run_feature_attribution = max_feature_nodes > 0
-
     for i in range(0, len(logit_idx), batch_size):
         batch = logit_vecs[i : i + batch_size]
-        
-        is_last_batch_of_logits = (i + batch_size) >= len(logit_idx)
-        should_retain = not is_last_batch_of_logits or will_run_feature_attribution
-
         rows = ctx.compute_batch(
             layers=torch.full((batch.shape[0],), n_layers),
             positions=torch.full((batch.shape[0],), n_pos - 1),
             inject_values=batch,
-            retain_graph=should_retain,
         )
         edge_matrix[i : i + batch.shape[0], :logit_offset] = rows.cpu()
         row_to_node_index[i : i + batch.shape[0]] = (
