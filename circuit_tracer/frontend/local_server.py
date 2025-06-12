@@ -69,7 +69,8 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
         #         self.wfile.write(b"Missing layer or index parameter")
         #         return
 
-        #     feature_path = os.path.join(self.data_dir, "features", str(layer), f"{index}.json")
+        #     feature_path = os.path.join("feature_data", str(layer), f"{index}.json")
+        #     print(feature_path)
         #     logger.info(f"Attempting to serve feature from {feature_path}")
 
         #     if not os.path.exists(feature_path):
@@ -161,7 +162,7 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
         #         content_length = int(self.headers["Content-Length"])
         #         post_data = self.rfile.read(content_length)
 
-        #         feature_dir = os.path.join(self.data_dir, "features", str(layer))
+        #         feature_dir = os.path.join("feature_data", str(layer))
         #         os.makedirs(feature_dir, exist_ok=True)
         #         feature_path = os.path.join(feature_dir, f"{index}.json")
 
