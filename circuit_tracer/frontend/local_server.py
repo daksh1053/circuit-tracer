@@ -54,7 +54,6 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
 
     def _do_GET(self):
-        # Redirect feature requests to AWS
         logger.info(f"Received request for {self.path}")
 
         parsed_path = urlparse(self.path)
