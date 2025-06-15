@@ -16,6 +16,49 @@ window.initCgFeatureDetail = async function({visState, renderAll, data, cgSel}){
   // throttle to prevent lag when mousing over
   var renderFeatureExamples = util.throttleDebounce(featureExamples.renderFeature, 200)
 
+  async function loadFeatureLabel(featureIndex) {
+    if (window.isLocalServing) {
+      try {
+        const response = await fetch(`/features_label?index=${featureIndex}`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log("loadFeatureLabel", data)
+          return data.label;
+        }
+      } catch (error) {
+        console.error('Error fetching feature label:', error);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  async function saveFeatureLabel(featureIndex, label) {
+    if (window.isLocalServing) {
+      try {
+        const response = await fetch('/save_label', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            index: featureIndex,
+            label: label
+          })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          console.log("saveFeatureLabel", data);
+          return true;
+        }
+      } catch (error) {
+        console.error('Error saving feature label:', error);
+        return false;
+      }
+    }
+    return false;
+  }
+
   function renderFeatureDetail() {
     logitsSel.html('').st({display:''})
 
@@ -56,23 +99,61 @@ window.initCgFeatureDetail = async function({visState, renderAll, data, cgSel}){
       const featureTitleSel = headerTopRowSel.append('div.feature-title')
         .html(`Feature&nbsp;<a style="color: inherit;" href="${d.url}" target="_blank">${label}</a> <span style="font-size: 0.9em; color: #777;">Act: ${actText}</span>`)
 
+      const featureDataPromise = featureExamples.loadFeature(scan, d.featureIndex);
+      
       if (typeof currentActivation == 'number') {
         window.renderActHistogram({
           featureTitleSel,
           scan,
           featureNode: d,
           featureExamples,
+          featureDataPromise,
         })
       }
 
+      loadFeatureLabel(d.featureIndex).then(loadedLabel => {
+          console.log("label", loadedLabel)
+          d.localClerp = loadedLabel;
+          d.ppClerp = loadedLabel;
+          const featureTitleLink = featureTitleSel.select('a');
+          if (document.activeElement !== featureTitleLink.node()) {
+            featureTitleLink.text(loadedLabel);
+          }
+      });
+
       headerTopRowSel.append('div.pp-clerp')
-        .text(d.ppClerp)
+        .text(d => d.ppClerp)
         .at({title: d.ppClerp})
 
       if (visState.isEditMode){
         headerTopRowSel.append('button.edit-clerp-button')
           .text('Edit')
           .on('click', toggleEdit)
+        
+        headerTopRowSel.append('button.save-clerp-button')
+          .text('Save')
+          .st({marginLeft: '5px'})
+          .on('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const inputValue = headerSel.select('input').node()?.value;
+            if (inputValue && d.featureIndex !== undefined) {
+              const success = await saveFeatureLabel(d.featureIndex, inputValue);
+              if (success) {
+                d.localClerp = inputValue;
+                d.ppClerp = inputValue;
+                // Update the feature title
+                const featureTitleLink = featureTitleSel.select('a');
+                if (featureTitleLink.node()) {
+                  featureTitleLink.text(inputValue);
+                }
+                // Close edit mode after successful save
+                editOpen = false;
+                hClerpEditSel.st({display: 'none'});
+              }
+            }
+          })
   
         function toggleEdit() {
           editOpen = !editOpen;

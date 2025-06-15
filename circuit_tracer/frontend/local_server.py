@@ -57,41 +57,77 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
         # Redirect feature requests to AWS
         logger.info(f"Received request for {self.path}")
 
-        # parsed_path = urlparse(self.path)
-        # if parsed_path.path == "/features":
-        #     query = parse_qs(parsed_path.query)
-        #     layer = query.get("layer", [None])[0]
-        #     index = query.get("index", [None])[0]
+        parsed_path = urlparse(self.path)
+        if parsed_path.path == "/features":
+            query = parse_qs(parsed_path.query)
+            layer = query.get("layer", [None])[0]
+            index = query.get("index", [None])[0]
 
-        #     if not layer or not index:
-        #         self.send_response(400)
-        #         self.end_headers()
-        #         self.wfile.write(b"Missing layer or index parameter")
-        #         return
+            if not layer or not index:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Missing layer or index parameter")
+                return
 
-        #     feature_path = os.path.join(self.data_dir, "features", str(layer), f"{index}.json")
-        #     logger.info(f"Attempting to serve feature from {feature_path}")
+            feature_path = os.path.join("feature_data", str(layer), f"{index}.json")
+            print(f"Local feature path: {feature_path}")
+            logger.info(f"Attempting to serve feature from {feature_path}")
 
-        #     if not os.path.exists(feature_path):
-        #         self.send_response(404)
-        #         self.end_headers()
-        #         self.wfile.write(b"Feature not found")
-        #         return
+            if not os.path.exists(feature_path):
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"Feature not found")
+                return
 
-        #     try:
-        #         with open(feature_path, "rb") as f:
-        #             content = f.read()
+            try:
+                with open(feature_path, "rb") as f:
+                    content = f.read()
 
-        #         self.send_response(200)
-        #         self.send_header("Content-Type", "application/json")
-        #         self.send_header("Content-Length", str(len(content)))
-        #         self.end_headers()
-        #         self.wfile.write(content)
-        #     except Exception as e:
-        #         logger.exception(f"Error serving feature file: {e}")
-        #         self.send_response(500)
-        #         self.end_headers()
-        #     return
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            except Exception as e:
+                logger.exception(f"Error serving feature file: {e}")
+                self.send_response(500)
+                self.end_headers()
+            return
+        
+        if parsed_path.path == "/features_label":
+            query = parse_qs(parsed_path.query)
+            index = query.get("index", [None])[0]
+            
+            if not index:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b"Missing index parameter")
+                return
+            
+            feature_path = os.path.join("feature_label", f"{index}.json")
+            print(f"Local feature label path: {feature_path}")
+            logger.info(f"Attempting to serve feature label from {feature_path}")
+            
+            if not os.path.exists(feature_path):
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"Feature label not found")
+                return
+            
+            try:
+                with open(feature_path, "rb") as f:
+                    content = f.read()
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()  
+                self.wfile.write(content)
+            except Exception as e:
+                logger.exception(f"Error serving feature label file: {e}")
+                self.send_response(500)
+                self.end_headers()
+            return
 
         # Handle both explicit index.html requests and root path requests
         if self.path.endswith("index.html") or self.path == "/":
@@ -117,6 +153,7 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
 
             # Properly join paths to handle missing slashes
             local_path = os.path.join(self.data_dir, rel_path)
+            print(f"Local path: {local_path}")
 
             logger.info(
                 f"Rewritten path to {local_path}. "
@@ -145,74 +182,134 @@ class CircuitGraphHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
-        # try:
-        #     parsed_path = urlparse(self.path)
-        #     if parsed_path.path == "/features":
-        #         query = parse_qs(parsed_path.query)
-        #         layer = query.get("layer", [None])[0]
-        #         index = query.get("index", [None])[0]
-
-        #         if not layer or not index:
-        #             self.send_response(400)
-        #             self.end_headers()
-        #             self.wfile.write(b"Missing layer or index parameter")
-        #             return
-
-        #         content_length = int(self.headers["Content-Length"])
-        #         post_data = self.rfile.read(content_length)
-
-        #         feature_dir = os.path.join(self.data_dir, "features", str(layer))
-        #         os.makedirs(feature_dir, exist_ok=True)
-        #         feature_path = os.path.join(feature_dir, f"{index}.json")
-
-        #         with open(feature_path, "wb") as f:
-        #             f.write(post_data)
-
-        #         self.send_response(200)
-        #         self.send_header("Content-Type", "application/json")
-        #         self.end_headers()
-        #         self.wfile.write(json.dumps({"status": "success", "path": feature_path}).encode("utf-8"))
-        #         logger.info(f"Feature saved to {feature_path}")
-        #         return
-        # except Exception as e:
-        #     logger.exception(f"Error handling POST request to /features: {e}")
-        #     self.send_response(500)
-        #     self.end_headers()
-        #     return
-
-        if not self.path.startswith("/save_graph/"):
-            self.send_response(404)
-            return
-
         try:
-            # Extract scan and slug from the URL path
-            parts = self.path.split("?")[0].strip("/").split("/")
-            slug = parts[-1]
+            print(f"Received POST request to {self.path}")
+            parsed_path = urlparse(self.path)
 
-            logger.info(f"Saving graph for {slug}")
+            if parsed_path.path == "/features":
+                query = parse_qs(parsed_path.query)
+                index = query.get("index", [None])[0]
+                layer = query.get("layer", [None])[0]
 
-            # Read the request body
-            content_length = int(self.headers["Content-Length"])
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode("utf-8"))
+                if not layer or not index:
+                    print("Missing layer or index parameter")
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"Missing layer or index parameter")
+                    return
 
-            # Generate filename with timestamp
-            save_path = os.path.join(self.data_dir, f"{slug}.json")
+                content_length = int(self.headers["Content-Length"])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode("utf-8"))
 
-            # Read the existing file and update it
-            with open(save_path, "r") as f:
-                graph = json.load(f)
-                graph["qParams"] = data["qParams"]
+                try:
+                    data_layer = data["transcoder_id"].split("-")[2]
+                    data_index = data["index"]
+                    if not (
+                        int(data_layer) == int(layer) and int(data_index) == int(index)
+                    ):
+                        print(
+                            f"Layer and index do not match: extracted {data_layer} {data_index} but expected {layer} {index}"
+                        )
+                        self.send_response(400)
+                        self.end_headers()
+                        self.wfile.write(b"Layer and index do not match")
+                        return
 
-            with open(save_path, "w") as f:
-                json.dump(graph, f, indent=2)
+                except Exception as e:
+                    print(f"Error parsing transcoder_id and index: {e}")
+                    logger.exception(f"Error parsing transcoder_id and index: {e}")
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"Error parsing transcoder_id and index")
+                    return
 
-            self.send_response(200)
+                feature_dir = os.path.join("feature_data", str(layer))
+                os.makedirs(feature_dir, exist_ok=True)
+                feature_path = os.path.join(feature_dir, f"{index}.json")
+                print(f"New feature path: {feature_path}")
+
+                with open(feature_path, "wb") as f:
+                    f.write(post_data)
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(
+                    json.dumps({"status": "success", "path": feature_path}).encode(
+                        "utf-8"
+                    )
+                )
+                logger.info(f"Feature saved to {feature_path}")
+                return
+
+            if parsed_path.path == "/save_label":
+                print("save_label")
+                content_length = int(self.headers["Content-Length"])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode("utf-8"))
+                print("data", data)
+                index = data.get("index")
+                label = data.get("label")
+
+                if index is None or label is None:
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(b"Missing index or label parameter")
+                    return
+
+                feature_dir = "feature_label"
+                os.makedirs(feature_dir, exist_ok=True)
+                feature_path = os.path.join(feature_dir, f"{index}.json")
+                print(f"New feature label path: {feature_path}")
+
+                with open(feature_path, "w") as f:
+                    json.dump({"label": label}, f, indent=2)
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(
+                    json.dumps({"status": "success", "path": feature_path}).encode(
+                        "utf-8"
+                    )
+                )
+                logger.info(f"Feature label saved to {feature_path}")
+                return
+
+            if self.path.startswith("/save_graph/"):
+                # Extract scan and slug from the URL path
+                parts = self.path.split("?")[0].strip("/").split("/")
+                slug = parts[-1]
+
+                logger.info(f"Saving graph for {slug}")
+
+                # Read the request body
+                content_length = int(self.headers["Content-Length"])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode("utf-8"))
+
+                # Generate filename with timestamp
+                save_path = os.path.join(self.data_dir, f"{slug}.json")
+
+                # Read the existing file and update it
+                with open(save_path, "r") as f:
+                    graph = json.load(f)
+                    graph["qParams"] = data["qParams"]
+
+                with open(save_path, "w") as f:
+                    json.dump(graph, f, indent=2)
+
+                self.send_response(200)
+                self.end_headers()
+                logger.info(f"Graph saved: {save_path}")
+                return
+
+            self.send_response(404)
             self.end_headers()
-            logger.info(f"Graph saved: {save_path}")
 
         except Exception as e:
-            logger.exception(f"Error saving graph: {e}")
+            logger.exception(f"Error handling POST request to {self.path}: {e}")
             self.send_response(500)
             self.end_headers()
 

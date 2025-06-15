@@ -26,6 +26,12 @@ share/python-wheels/
 *.egg
 MANIFEST
 ignore/
+exp/
+feature_label/
+feature_data/
+graph_files/
+graphs/
+serving.py
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

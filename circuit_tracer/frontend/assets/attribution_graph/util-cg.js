@@ -14,17 +14,14 @@ window.utilCg = (function(){
   }
 
   function loadDatapath(urlStr){
-    try {
-      var url = new URL(urlStr)
-      urlStr = url.searchParams.get('datapath') ?? urlStr
-    } catch {}
-    urlStr = urlStr?.replace('index.html', 'data.json').split('?')[0] || 'data.json'
+    // Disabled URL extraction - always use data.json
+    urlStr = 'data.json'
 
     try {
       return util.getFile(urlStr)
     } catch (exc) {
       d3.select('body')
-        .html(`Couldn't load data from <code>${urlStr}</code>: ${exc}. Maybe you need to specify a <code>?datapath=</code> argument?`)
+        .html(`Couldn't load data from <code>${urlStr}</code>: ${exc}.`)
         .st({color: '#c00', fontSize: '150%', padding: '1em', whiteSpace: 'pre-wrap'})
       throw exc
     }
@@ -237,6 +234,17 @@ window.utilCg = (function(){
       } else if (d.feature_type == 'embedding'){
         d.clerp = `Emb: " ${util.ppToken(data.metadata.prompt_tokens[d.ctx_idx])} "`
       } else if (d.feature_type?.includes('transcoder') && !d.clerp) {
+
+        // clerpPromises.push((async () => {
+        //   try {
+        //     const clerp = await util.getClerpFromBackend(d.layer, d.feature)
+        //     console.log("clerp", clerp)
+        //     d.clerp = clerp.label
+        //   } catch (e) {
+        //     console.error(`ERROR: Fetching label for feature ${d.feature}`, e);
+        //   }
+        // })());
+
         // clerpPromises.push((async () => {
         //   try {
         //     // TODO: make model_id and transcoder_id configurable from metadata

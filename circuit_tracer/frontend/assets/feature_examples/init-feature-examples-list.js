@@ -140,8 +140,18 @@ window.initFeatureExamplesList = function({renderAll, visState, sel}){
         // .at({title: d => `${d.token} (${d.act})` })
 
     tokenSel
-        .filter(d => d.act)
-        .st({background: d => visState.feature.colorScale(d.act)})
+      .filter(d => d.act)
+      .each(function(d) {
+        const colorStr = visState.feature.colorScale(d.act);
+        // colorStr is like 'rgb(247, 251, 255)'
+        const rgb = colorStr.replace(/[^\d,]/g, '').split(',');
+        const brightness = (parseInt(rgb[0], 10) * 299 + parseInt(rgb[1], 10) * 587 + parseInt(rgb[2], 10) * 114) / 1000;
+        const textColor = brightness > 140 ? 'black' : 'white';
+        
+        d3.select(this)
+          .style('background', colorStr)
+          .style('color', textColor);
+      });
 
     // We need to track if our merged token contains the train_token_ind
     var centerNode = tokenSel

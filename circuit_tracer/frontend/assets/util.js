@@ -37,7 +37,16 @@ window.util = (function () {
 
     return rv
   })()
-  
+
+  async function getClerpFromBackend(layer, index) {
+    const port = 8048
+    const response = await fetch(`http://localhost:${port}/features_label?index=${index}`)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return await response.json()
+  }
+
   async function getFileFromBackend(layer, index) {
     const port = 8048
     const response = await fetch(`http://localhost:${port}/features?layer=${layer}&index=${index}`)
@@ -55,6 +64,21 @@ window.util = (function () {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    return await response.json()
+  }
+
+  async function postLabelToBackend(index, label) {
+    const port = 8048
+    const response = await fetch(`http://localhost:${port}/save_label`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ index, label }),
     })
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -91,8 +115,12 @@ window.util = (function () {
     return __datacache[path]
 
     async function __fetch() {
+      useCache = false
       var cacheOption = useCache ? 'force-cache' : 'no-cache'
+      console.log("cacheOption", cacheOption)
+      console.log("path", path)
       var res = await fetch(path, {cache: cacheOption})
+      console.log("res", res)
       if (res.status == 500) {
         var resText = await res.text()
         console.log(resText, res) 
@@ -105,7 +133,9 @@ window.util = (function () {
       } else if (type == 'npy') {
         return npyjs.parse(await res.arrayBuffer())
       } else if (type == 'json') {
-        return await res.json()
+        var json = await res.json()
+        console.log("json", json)
+        return json
       } else if (type == 'jsonl') {
         var text = await res.text()
         return text.split(/\r?\n/).filter(d => d).map(line => JSON.parse(line))
@@ -457,6 +487,8 @@ window.util = (function () {
     attachFeatureExamplesTooltip,
     getFileFromBackend,
     postFeatureToBackend,
+    getClerpFromBackend,
+    postLabelToBackend,
   }
 })()
 

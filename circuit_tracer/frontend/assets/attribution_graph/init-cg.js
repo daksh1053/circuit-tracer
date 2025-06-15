@@ -1,5 +1,6 @@
 window.initCg = async function (sel, slug, {clickedId, clickedIdCb, isModal, isGridsnap, pruningThreshold} = {}){
   var data = await util.getFile(`./graph_data/${slug}.json`)
+  console.log("data", data)
   
   var visState = {
     pinnedIds: [],
@@ -24,12 +25,12 @@ window.initCg = async function (sel, slug, {clickedId, clickedIdCb, isModal, isG
   }
   
   // Get pinnedIds from URL parameters if available (prioritized over localStorage)
-  var urlPinnedIds = util.params.get('pinnedIds');
-  var urlHiddenIds = util.params.get('hiddenIds');
-  console.log(urlPinnedIds, urlHiddenIds)
+  // var urlPinnedIds = util.params.get('pinnedIds');
+  // var urlHiddenIds = util.params.get('hiddenIds');
+  // console.log(urlPinnedIds, urlHiddenIds)
   console.log(visState.pinnedIds, visState.hiddenIds)
-  if (urlPinnedIds) visState.pinnedIds = urlPinnedIds
-  if (urlHiddenIds) visState.hiddenIds = urlHiddenIds
+  // if (urlPinnedIds) visState.pinnedIds = urlPinnedIds
+  // if (urlHiddenIds) visState.hiddenIds = urlHiddenIds
 
   let urlSupernodes = [];
   try {
